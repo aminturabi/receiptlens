@@ -1,0 +1,8 @@
+# ReceiptLens — FastAPI server (app/main.py) + evaluation
+# Install torch CPU first:
+#   pip install torch --index-url https://download.pytorch.org/whl/cpu
+-r requirements.txt
+fastapi>=0.110
+uvicorn[standard]>=0.29
+python-multipart>=0.0.9
+datasets>=2.19

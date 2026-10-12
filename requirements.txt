@@ -1,14 +1,9 @@
-# ReceiptLens — receipt & invoice extraction pipeline
-# NOTE: install torch CPU first:
-#   pip install torch --index-url https://download.pytorch.org/whl/cpu
+# ReceiptLens — Streamlit Cloud demo (streamlit_app.py)
+# Keep this LEAN: Streamlit Cloud free tier has 1GB RAM.
+# For the FastAPI server, see requirements-api.txt
+streamlit>=1.32
 transformers>=4.40
 Pillow>=10
-fastapi>=0.110
-uvicorn[standard]>=0.29
-python-multipart>=0.0.9
-# eval only (not needed to run the app)
-datasets>=2.19
-# Streamlit Cloud demo (streamlit_app.py) — lightweight ONNX runtime
-streamlit>=1.32
 optimum[onnxruntime]>=1.20
 onnxruntime>=1.17
+huggingface_hub>=0.20
