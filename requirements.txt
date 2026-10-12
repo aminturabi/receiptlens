@@ -1,0 +1,10 @@
+# ReceiptLens — receipt & invoice extraction pipeline
+# NOTE: install torch CPU first:
+#   pip install torch --index-url https://download.pytorch.org/whl/cpu
+transformers>=4.40
+Pillow>=10
+fastapi>=0.110
+uvicorn[standard]>=0.29
+python-multipart>=0.0.9
+# eval only (not needed to run the app)
+datasets>=2.19

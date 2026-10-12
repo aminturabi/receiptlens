@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ReceiptLens — receipt &amp; invoice extraction</title>
+<style>
+  :root { --bg:#0f1420; --card:#182033; --ink:#e8edf7; --muted:#93a0b8; --accent:#5eead4; --line:#26314b; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; background:var(--bg); color:var(--ink); }
+  header { max-width:1080px; margin:0 auto; padding:48px 24px 8px; }
+  header h1 { margin:0 0 8px; font-size:2rem; letter-spacing:-.02em; }
+  header h1 span { color:var(--accent); }
+  header p { color:var(--muted); max-width:640px; line-height:1.55; margin:0; }
+  main { max-width:1080px; margin:0 auto; padding:24px; display:grid; gap:20px; grid-template-columns:1fr 1fr; }
+  @media (max-width:860px){ main{ grid-template-columns:1fr; } }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:20px; }
+  .drop { border:2px dashed var(--line); border-radius:12px; padding:36px 20px; text-align:center; cursor:pointer; color:var(--muted); transition:.15s; }
+  .drop:hover,.drop.over { border-color:var(--accent); color:var(--ink); }
+  .drop input { display:none; }
+  #preview { max-width:100%; max-height:340px; border-radius:8px; margin-top:12px; display:none; }
+  button.go { margin-top:14px; width:100%; padding:13px; font-size:1rem; font-weight:600; border:0; border-radius:10px;
+    background:var(--accent); color:#06231f; cursor:pointer; }
+  button.go:disabled { opacity:.45; cursor:wait; }
+  table { width:100%; border-collapse:collapse; font-size:.92rem; }
+  th,td { text-align:left; padding:8px 6px; border-bottom:1px solid var(--line); }
+  th { color:var(--muted); font-weight:600; text-transform:uppercase; font-size:.72rem; letter-spacing:.06em; }
+  td.num { text-align:right; font-variant-numeric:tabular-nums; }
+  .totals { margin-top:12px; display:grid; gap:6px; }
+  .totals div { display:flex; justify-content:space-between; color:var(--muted); }
+  .totals div.grand { color:var(--ink); font-weight:700; font-size:1.1rem; border-top:1px solid var(--line); padding-top:8px; }
+  pre.json { background:#0b101c; border:1px solid var(--line); border-radius:10px; padding:14px; overflow:auto;
+    max-height:420px; font-size:.8rem; line-height:1.5; }
+  .meta { color:var(--muted); font-size:.85rem; margin-top:10px; }
+  .err { color:#fda4af; margin-top:10px; }
+  footer { max-width:1080px; margin:0 auto; padding:8px 24px 40px; color:var(--muted); font-size:.85rem; }
+  footer a { color:var(--accent); }
+</style>
+</head>
+<body>
+<header>
+  <h1>ReceiptLens <span>— receipts → JSON</span></h1>
+  <p>Drop in a receipt or invoice photo. An OCR-free document model reads it end-to-end and returns
+     structured data: line items, subtotal, tax and total. No templates, no manual rules.</p>
+</header>
+<main>
+  <section class="card">
+    <div class="drop" id="drop">
+      <input type="file" id="file" accept="image/*">
+      <div>📄 Drag &amp; drop a receipt image here, or <u>click to browse</u></div>
+      <img id="preview" alt="receipt preview">
+    </div>
+    <button class="go" id="go" disabled>Extract structured data</button>
+    <div class="err" id="err"></div>
+  </section>
+  <section class="card">
+    <div id="empty" style="color:var(--muted)">Results will appear here.</div>
+    <div id="out" style="display:none">
+      <table><thead><tr><th>Item</th><th>Qty</th><th style="text-align:right">Price</th></tr></thead>
+      <tbody id="items"></tbody></table>
+      <div class="totals">
+        <div><span>Subtotal</span><span id="t-sub">–</span></div>
+        <div><span>Tax</span><span id="t-tax">–</span></div>
+        <div class="grand"><span>Total</span><span id="t-tot">–</span></div>
+      </div>
+      <div class="meta" id="meta"></div>
+      <h3 style="font-size:.85rem;color:var(--muted)">Raw model JSON</h3>
+      <pre class="json" id="raw"></pre>
+    </div>
+  </section>
+</main>
+<footer>Built by <a href="https://aminkhanofficial.vercel.app/">Amin Khan</a> ·
+  model: <code>donut-base-finetuned-cord-v2</code> (OCR-free document understanding transformer)</footer>
+<script>
+const drop=document.getElementById('drop'), file=document.getElementById('file'),
+      go=document.getElementById('go'), prev=document.getElementById('preview'),
+      err=document.getElementById('err');
+let blob=null;
+drop.onclick=e=>{ if(e.target!==prev) file.click(); };
+file.onchange=()=>{ blob=file.files[0]; show(); };
+['dragover','dragenter'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('over');}));
+['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('over');}));
+drop.addEventListener('drop',e=>{ blob=e.dataTransfer.files[0]; show(); });
+function show(){ if(!blob) return; prev.src=URL.createObjectURL(blob); prev.style.display='block';
+  go.disabled=false; err.textContent=''; }
+go.onclick=async()=>{
+  go.disabled=true; go.textContent='Reading receipt…'; err.textContent='';
+  try{
+    const fd=new FormData(); fd.append('file',blob);
+    const r=await fetch('/api/extract',{method:'POST',body:fd});
+    if(!r.ok) throw new Error((await r.json()).detail||('HTTP '+r.status));
+    const d=await r.json(); render(d);
+  }catch(e){ err.textContent='Error: '+e.message; }
+  go.disabled=false; go.textContent='Extract structured data';
+};
+function render(d){
+  document.getElementById('empty').style.display='none';
+  document.getElementById('out').style.display='block';
+  const tb=document.getElementById('items'); tb.innerHTML='';
+  (d.items||[]).forEach(it=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td></td><td></td><td class="num"></td>`;
+    tr.children[0].textContent=it.name||'–'; tr.children[1].textContent=it.quantity||'';
+    tr.children[2].textContent=it.price||''; tb.appendChild(tr);
+  });
+  document.getElementById('t-sub').textContent=d.subtotal||'–';
+  document.getElementById('t-tax').textContent=d.tax||'–';
+  document.getElementById('t-tot').textContent=d.total||'–';
+  document.getElementById('meta').textContent=
+    `${d.items?d.items.length:0} line items · processed in ${d.latency_s}s`;
+  document.getElementById('raw').textContent=JSON.stringify(d.raw,null,2);
+}
+</script>
+</body>
+</html>

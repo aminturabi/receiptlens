@@ -1,0 +1,7 @@
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+.eval_cache/
+eval/data/synth/
+.DS_Store
