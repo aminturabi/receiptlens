@@ -8,3 +8,7 @@ uvicorn[standard]>=0.29
 python-multipart>=0.0.9
 # eval only (not needed to run the app)
 datasets>=2.19
+# Streamlit Cloud demo (streamlit_app.py) — lightweight ONNX runtime
+streamlit>=1.32
+optimum[onnxruntime]>=1.20
+onnxruntime>=1.17
